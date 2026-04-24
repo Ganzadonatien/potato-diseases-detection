@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:icons_plus/icons_plus.dart';
+import 'package:irish_potato_app/screens/dashboard.dart';
+import 'package:irish_potato_app/screens/forgot_password.dart';
 import 'package:irish_potato_app/screens/signup_screen.dart';
 import 'package:irish_potato_app/theme/theme.dart';
 import 'package:irish_potato_app/widgets/custom_scaffold.dart';
@@ -132,8 +134,12 @@ class _SignInScreenState extends State<SignInScreen> {
                   
                          GestureDetector(
                         onTap: () {
-                          // Add your "Forget password?" navigation logic here
-                          print('Navigate to Forget Password screen');
+                           Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const ForgotPasswordScreen(),
+      ),
+    );
                         },
                         child: const Text(
                           'Forgot password?',
@@ -153,23 +159,25 @@ class _SignInScreenState extends State<SignInScreen> {
   width: double.infinity,
   child: ElevatedButton(
     onPressed: () {
-      if (_formKey.currentState!.validate() && rememberPassword) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Processing Data'),
-          ),
-        );
-      } else if (!rememberPassword) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Please agree to the processing of personal data.',
-            ),
-          ),
-        );
-      }
-    },
+  if (_formKey.currentState!.validate() && rememberPassword) {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const MainDashboard(),
+      ),
+    );
+  } else if (!rememberPassword) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Please agree to the processing of personal data.',
+        ),
+      ),
+    );
+  }
+},
     child: const Text('Sign In'),
+    
   ),
 ),
 
