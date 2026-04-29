@@ -1,8 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:irish_potato_app/screens/captureScreen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-class MainDashboard extends StatelessWidget {
+
+class MainDashboard extends StatefulWidget {
   const MainDashboard({super.key});
+
+  @override
+  State<MainDashboard> createState() => _MainDashboardState();
+}
+
+class _MainDashboardState extends State<MainDashboard> {
+
+  final user = FirebaseAuth.instance.currentUser!;
+
+  signout() async{
+    FirebaseAuth.instance.signOut();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,8 +41,8 @@ class MainDashboard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'Welcome, John',
+            Text(
+              'Welcome, ${user.email}',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Color(0xFF1A2E1A),
@@ -64,6 +78,10 @@ class MainDashboard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: (() =>signout()),
+        child: Icon(Icons.login_rounded),
       ),
     );
   }

@@ -1,9 +1,10 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:icons_plus/icons_plus.dart';
+// ignore: unused_import
 import 'package:irish_potato_app/screens/dashboard.dart';
 import 'package:irish_potato_app/screens/forgot_password.dart';
 import 'package:irish_potato_app/screens/signup_screen.dart';
-import 'package:irish_potato_app/theme/theme.dart';
 import 'package:irish_potato_app/widgets/custom_scaffold.dart';
 
 class SignInScreen extends StatefulWidget {
@@ -14,8 +15,63 @@ class SignInScreen extends StatefulWidget {
 }
 
 class _SignInScreenState extends State<SignInScreen> {
+
+
   final _formKey = GlobalKey<FormState>();
   bool rememberPassword = true;
+  bool isLoading = false;
+
+  final email = TextEditingController();
+  final password = TextEditingController();
+
+
+  signin() async{
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() => isLoading = true);
+
+    try {
+      print('Attempting login with email: ${email.text.trim()}');
+      
+      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email.text.trim(),
+        password: password.text,
+      );
+      
+      print('Login successful: ${credential.user?.uid}');
+    } on FirebaseAuthException catch (e) {
+      print('FirebaseAuthException: ${e.code} - ${e.message}');
+      String message = 'Login failed';
+      if (e.code == 'user-not-found') {
+        message = 'No account found with this email';
+      } else if (e.code == 'wrong-password') {
+        message = 'Incorrect password';
+      } else if (e.code == 'invalid-email') {
+        message = 'Invalid email address';
+      } else if (e.code == 'user-disabled') {
+        message = 'This account has been disabled';
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      }
+    } catch (e) {
+      print('Error during login: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return CustomScaffold(
@@ -63,6 +119,7 @@ class _SignInScreenState extends State<SignInScreen> {
                       }
                       return null;
                     },
+                    controller: email,
                     decoration: InputDecoration(
                       labelText: 'Email',
                       hintText: 'Enter Email',
@@ -90,8 +147,9 @@ class _SignInScreenState extends State<SignInScreen> {
                       }
                       return null;
                     },
+                    controller: password,
                     decoration: InputDecoration(
-                      label: const Text('Password'),
+                      label: Text('Password'),
                       hintText: 'Enter Password',
                       hintStyle: const TextStyle(
                         color: Colors.black26,
@@ -158,26 +216,22 @@ class _SignInScreenState extends State<SignInScreen> {
                     SizedBox(
   width: double.infinity,
   child: ElevatedButton(
-    onPressed: () {
-  if (_formKey.currentState!.validate() && rememberPassword) {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const MainDashboard(),
-      ),
-    );
-  } else if (!rememberPassword) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Please agree to the processing of personal data.',
-        ),
-      ),
-    );
-  }
-},
-    child: const Text('Sign In'),
-    
+    onPressed: isLoading ? null : () {
+      if (_formKey.currentState!.validate()) {
+        signin();
+      }
+    },
+    child: isLoading
+        ? const SizedBox(
+            height: 20,
+            width: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Colors.white,
+            ),
+          )
+        : const Text('Sign In'),
+   
   ),
 ),
 

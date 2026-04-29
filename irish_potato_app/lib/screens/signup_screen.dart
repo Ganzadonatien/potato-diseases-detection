@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:icons_plus/icons_plus.dart';
 import 'package:irish_potato_app/screens/login.dart';
 import 'package:irish_potato_app/widgets/custom_scaffold.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:get/get.dart';
+import 'package:irish_potato_app/wrapper.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -13,6 +16,67 @@ class SignUpScreen extends StatefulWidget {
 class _SignUpScreenState extends State<SignUpScreen> {
   final _formKey = GlobalKey<FormState>();
   bool agreePersonalData = true;
+  bool isLoading = false;
+  
+  TextEditingController fullname = TextEditingController();
+  TextEditingController email = TextEditingController();
+  TextEditingController password = TextEditingController();
+
+  signup() async{
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    if (password.text.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password must be at least 6 characters')),
+      );
+      return;
+    }
+
+    setState(() => isLoading = true);
+
+    try {
+      print('Attempting to create user with email: ${email.text.trim()}');
+      
+      final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: email.text.trim(),
+        password: password.text,
+      );
+      
+      print('User created successfully: ${credential.user?.uid}');
+      
+      if (mounted) {
+        Get.offAll(const Wrapper());
+      }
+    } on FirebaseAuthException catch (e) {
+      print('FirebaseAuthException: ${e.code} - ${e.message}');
+      String message = 'An error occurred';
+      if (e.code == 'weak-password') {
+        message = 'The password provided is too weak';
+      } else if (e.code == 'email-already-in-use') {
+        message = 'The account already exists for that email';
+      } else if (e.code == 'invalid-email') {
+        message = 'Please enter a valid email address';
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      }
+    } catch (e) {
+      print('Error during signup: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -55,6 +119,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                       /// FULL NAME
                       TextFormField(
+                        controller: fullname, 
                         decoration: InputDecoration(
                           labelText: "Full Name",
                           border: OutlineInputBorder(
@@ -67,6 +132,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                       /// EMAIL
                       TextFormField(
+                        controller: email,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return "Enter Email";
@@ -85,6 +151,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                       /// PASSWORD
                       TextFormField(
+                        controller: password,
                         obscureText: true,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
@@ -128,17 +195,23 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: () {
+                          onPressed: isLoading ? null : () {
                             if (_formKey.currentState!.validate() &&
                                 agreePersonalData) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text("Account Created"),
-                                ),
-                              );
+                              signup();
                             }
                           },
-                          child: const Text("Sign Up"),
+                          child: isLoading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text("Sign Up"),
+                          //child : const Text("Sign Up"),
                         ),
                       ),
 
