@@ -44,6 +44,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
         password: password.text,
       );
       
+      await credential.user?.updateDisplayName(fullname.text.trim());
+      
       print('User created successfully: ${credential.user?.uid}');
       
       if (mounted) {

@@ -90,8 +90,8 @@ class _SignInScreenState extends State<SignInScreen> {
                 decoration: const BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(40),
-                    topRight: Radius.circular(40)
+                    topLeft: Radius.circular(25),
+                    topRight: Radius.circular(25),
                   )
                 ),
                 child: SingleChildScrollView(
