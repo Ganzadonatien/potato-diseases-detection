@@ -118,6 +118,7 @@ import 'package:irish_potato_app/screens/login.dart';
 import 'package:irish_potato_app/screens/signup_screen.dart';
 import 'package:irish_potato_app/widgets/custom_scaffold.dart';
 import 'package:irish_potato_app/widgets/welcome_button.dart';
+import 'package:irish_potato_app/wrapper.dart';
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
 
@@ -172,26 +173,26 @@ Expanded(
   child: Padding(
     padding: EdgeInsets.only(left: 8, right: 15, top: 18, bottom: 18),
     child: WelcomeButton(
-      buttonText: 'Sign In',
-      onTap: SignInScreen(),
+      buttonText: 'Get Started',
+      onTap: Wrapper(),
   color: Colors.white.withValues(alpha: 0.3),
   textColor: const Color.fromARGB(255, 2, 18, 25),
     ),
   ),
 
 ),
-Expanded(
-  child: Padding(
-    padding: EdgeInsets.only(left: 15, right: 8),
-    child: WelcomeButton(
-      buttonText: 'Sign up',
-      onTap: SignUpScreen(),
-  color: Colors.white.withValues(alpha: 0.3),
-  textColor: const Color.fromARGB(255, 1, 18, 26),
-    ),
-  ),
+// Expanded(
+//   child: Padding(
+//     padding: EdgeInsets.only(left: 15, right: 8),
+//     child: WelcomeButton(
+//       buttonText: 'Sign up',
+//       onTap: SignUpScreen(),
+//   color: Colors.white.withValues(alpha: 0.3),
+//   textColor: const Color.fromARGB(255, 1, 18, 26),
+//     ),
+//   ),
 
-),
+// ),
     ],
   ),
   ),  

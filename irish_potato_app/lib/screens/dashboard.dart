@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:irish_potato_app/screens/captureScreen.dart';
+import 'package:irish_potato_app/screens/analytics_dashboard.dart';
+import 'package:irish_potato_app/screens/scan_history_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
 
 class MainDashboard extends StatefulWidget {
   const MainDashboard({super.key});
@@ -11,10 +12,9 @@ class MainDashboard extends StatefulWidget {
 }
 
 class _MainDashboardState extends State<MainDashboard> {
-
   final user = FirebaseAuth.instance.currentUser!;
 
-  signout() async{
+  signout() async {
     FirebaseAuth.instance.signOut();
   }
 
@@ -24,7 +24,7 @@ class _MainDashboardState extends State<MainDashboard> {
       backgroundColor: const Color(0xFF5A7A5A),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-         elevation: 0,
+        elevation: 0,
         centerTitle: true,
         title: const Text(
           'MAIN DASHBOARD',
@@ -42,7 +42,7 @@ class _MainDashboardState extends State<MainDashboard> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Welcome, ${user.email}',
+              'Welcome, ${user.displayName ?? user.email}!',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Color(0xFF1A2E1A),
@@ -51,36 +51,52 @@ class _MainDashboardState extends State<MainDashboard> {
               ),
             ),
             const SizedBox(height: 32),
-           _DashboardButton(
-  label: 'Capture Leaf',
-  color: const Color(0xFF1B5E3A),
-  icon: Icons.camera_alt_outlined,
-  onTap: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const CaptureScreen()),
-    );
-  },
-),
+            _DashboardButton(
+              label: 'Capture Leaf',
+              color: const Color(0xFF1B5E3A),
+              icon: Icons.camera_alt_outlined,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CaptureScreen(),
+                  ),
+                );
+              },
+            ),
             const SizedBox(height: 30),
             _DashboardButton(
               label: 'View Reports',
               color: const Color(0xFF8B1A1A),
               icon: Icons.bar_chart_rounded,
-              onTap: () {},
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AnalyticsDashboard(),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 30),
             _DashboardButton(
               label: 'View History',
               color: const Color(0xFF1A2260),
               icon: Icons.trending_up_rounded,
-              onTap: () {},
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ScanHistoryScreen(),
+                  ),
+                );
+              },
             ),
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: (() =>signout()),
+        onPressed: (() => signout()),
         child: Icon(Icons.login_rounded),
       ),
     );
