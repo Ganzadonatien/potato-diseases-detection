@@ -3,8 +3,9 @@ import 'package:icons_plus/icons_plus.dart';
 import 'package:irish_potato_app/screens/login.dart';
 import 'package:irish_potato_app/widgets/custom_scaffold.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:get/get.dart';
-import 'package:irish_potato_app/wrapper.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:irish_potato_app/screens/dashboard.dart';
+import 'package:irish_potato_app/models/location.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -17,66 +18,61 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _formKey = GlobalKey<FormState>();
   bool agreePersonalData = true;
   bool isLoading = false;
-  
+
   TextEditingController fullname = TextEditingController();
   TextEditingController email = TextEditingController();
   TextEditingController password = TextEditingController();
 
-  signup() async{
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+  String? selectedProvince;
+  String? selectedDistrict;
+  String? selectedSector;
 
-    if (password.text.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password must be at least 6 characters')),
-      );
-      return;
-    }
+  Future<void> signup() async {
+    if (!_formKey.currentState!.validate() || !agreePersonalData) return;
 
     setState(() => isLoading = true);
 
     try {
-      print('Attempting to create user with email: ${email.text.trim()}');
-      
-      final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: email.text.trim(),
-        password: password.text,
-      );
-      
+      final credential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: email.text.trim(),
+            password: password.text,
+          );
+
       await credential.user?.updateDisplayName(fullname.text.trim());
-      
-      print('User created successfully: ${credential.user?.uid}');
-      
-      if (mounted) {
-        Get.offAll(const Wrapper());
-      }
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(credential.user!.uid)
+          .set({
+            'fullName': fullname.text.trim(),
+            'email': email.text.trim(),
+            'province': selectedProvince,
+            'district': selectedDistrict,
+            'sector': selectedSector,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const MainDashboard()),
+        (route) => false,
+      );
     } on FirebaseAuthException catch (e) {
-      print('FirebaseAuthException: ${e.code} - ${e.message}');
       String message = 'An error occurred';
       if (e.code == 'weak-password') {
         message = 'The password provided is too weak';
       } else if (e.code == 'email-already-in-use') {
-        message = 'The account already exists for that email';
+        message = 'An account already exists for that email';
       } else if (e.code == 'invalid-email') {
         message = 'Please enter a valid email address';
       }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     } catch (e) {
-      print('Error during signup: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
     } finally {
-      if (mounted) {
-        setState(() => isLoading = false);
-      }
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
@@ -85,10 +81,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     return CustomScaffold(
       child: Column(
         children: [
-          Expanded(
-            flex: 2,
-            child: SizedBox(),
-          ),
+          Expanded(flex: 2, child: SizedBox()),
 
           Expanded(
             flex: 8,
@@ -121,7 +114,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                       /// FULL NAME
                       TextFormField(
-                        controller: fullname, 
+                        controller: fullname,
                         decoration: InputDecoration(
                           labelText: "Full Name",
                           border: OutlineInputBorder(
@@ -169,6 +162,116 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         ),
                       ),
 
+                      const SizedBox(height: 15),
+
+                      /// PROVINCE DROPDOWN
+                      DropdownButtonFormField<String>(
+                        initialValue: selectedProvince,
+                        decoration: InputDecoration(
+                          labelText: "Province",
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        items: LocationData.getProvinces().map((province) {
+                          return DropdownMenuItem(
+                            value: province,
+                            child: Text(province),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            selectedProvince = value;
+                            selectedDistrict = null;
+                            selectedSector = null;
+                          });
+                        },
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return "Select a Province";
+                          }
+                          return null;
+                        },
+                      ),
+
+                      const SizedBox(height: 15),
+
+                      /// DISTRICT DROPDOWN
+                      DropdownButtonFormField<String>(
+                        initialValue: selectedDistrict,
+                        decoration: InputDecoration(
+                          labelText: "District",
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        items: selectedProvince != null
+                            ? LocationData.getDistrictsByProvince(
+                                selectedProvince!,
+                              ).map((district) {
+                                return DropdownMenuItem(
+                                  value: district,
+                                  child: Text(district),
+                                );
+                              }).toList()
+                            : [],
+                        onChanged: selectedProvince != null
+                            ? (value) {
+                                setState(() {
+                                  selectedDistrict = value;
+                                  selectedSector = null;
+                                });
+                              }
+                            : null,
+                        validator: (value) {
+                          if (selectedProvince != null &&
+                              (value == null || value.isEmpty)) {
+                            return "Select a District";
+                          }
+                          return null;
+                        },
+                      ),
+
+                      const SizedBox(height: 15),
+
+                      /// SECTOR DROPDOWN
+                      DropdownButtonFormField<String>(
+                        initialValue: selectedSector,
+                        decoration: InputDecoration(
+                          labelText: "Sector",
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        items:
+                            selectedProvince != null && selectedDistrict != null
+                            ? LocationData.getSectorsByDistrict(
+                                selectedProvince!,
+                                selectedDistrict!,
+                              ).map((sector) {
+                                return DropdownMenuItem(
+                                  value: sector,
+                                  child: Text(sector),
+                                );
+                              }).toList()
+                            : [],
+                        onChanged:
+                            selectedProvince != null && selectedDistrict != null
+                            ? (value) {
+                                setState(() {
+                                  selectedSector = value;
+                                });
+                              }
+                            : null,
+                        validator: (value) {
+                          if (selectedDistrict != null &&
+                              (value == null || value.isEmpty)) {
+                            return "Select a Sector";
+                          }
+                          return null;
+                        },
+                      ),
+
                       const SizedBox(height: 10),
 
                       /// CHECKBOX
@@ -197,12 +300,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: isLoading ? null : () {
-                            if (_formKey.currentState!.validate() &&
-                                agreePersonalData) {
-                              signup();
-                            }
-                          },
+                          onPressed: isLoading
+                              ? null
+                              : () {
+                                  if (_formKey.currentState!.validate() &&
+                                      agreePersonalData) {
+                                    signup();
+                                  }
+                                },
                           child: isLoading
                               ? const SizedBox(
                                   height: 20,
@@ -233,47 +338,38 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                       const SizedBox(height: 10),
 
-                      
                       Row(
-  mainAxisAlignment: MainAxisAlignment.center,
-  children: [
-    Brand(
-      Brands.google,
-      size: 40,
-    ),
-  ],
-),
-const SizedBox(height: 10),
-Row(
-  mainAxisAlignment: MainAxisAlignment.center,
-  children: [
-    const Text(
-      'Already have an account?',
-      style: TextStyle(
-        color: Colors.black45,
-      ),
-    ),
-    const SizedBox(width: 8), // spacing
-    GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const SignInScreen(),
-          ),
-        );
-      },
-      child: const Text(
-        'Sign In',
-        style: TextStyle(
-          color: Colors.blue,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    ),
-  ],
-)
-
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [Brand(Brands.google, size: 40)],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text(
+                            'Already have an account?',
+                            style: TextStyle(color: Colors.black45),
+                          ),
+                          const SizedBox(width: 8), // spacing
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const SignInScreen(),
+                                ),
+                              );
+                            },
+                            child: const Text(
+                              'Sign In',
+                              style: TextStyle(
+                                color: Colors.blue,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
