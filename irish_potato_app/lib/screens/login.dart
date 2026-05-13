@@ -1,7 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:icons_plus/icons_plus.dart';
-// ignore: unused_import
 import 'package:irish_potato_app/screens/dashboard.dart';
 import 'package:irish_potato_app/screens/forgot_password.dart';
 import 'package:irish_potato_app/screens/signup_screen.dart';
@@ -25,50 +24,39 @@ class _SignInScreenState extends State<SignInScreen> {
   final password = TextEditingController();
 
 
-  signin() async{
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+  signin() async {
+    if (!_formKey.currentState!.validate()) return;
 
     setState(() => isLoading = true);
 
     try {
-      print('Attempting login with email: ${email.text.trim()}');
-      
-      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email.text.trim(),
         password: password.text,
       );
-      
-      print('Login successful: ${credential.user?.uid}');
+
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const MainDashboard()),
+        (route) => false,
+      );
     } on FirebaseAuthException catch (e) {
-      print('FirebaseAuthException: ${e.code} - ${e.message}');
       String message = 'Login failed';
       if (e.code == 'user-not-found') {
         message = 'No account found with this email';
-      } else if (e.code == 'wrong-password') {
-        message = 'Incorrect password';
+      } else if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        message = 'Incorrect email or password';
       } else if (e.code == 'invalid-email') {
         message = 'Invalid email address';
       } else if (e.code == 'user-disabled') {
         message = 'This account has been disabled';
       }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     } catch (e) {
-      print('Error during login: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
     } finally {
-      if (mounted) {
-        setState(() => isLoading = false);
-      }
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
