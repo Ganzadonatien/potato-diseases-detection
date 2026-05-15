@@ -3,9 +3,10 @@ import 'package:icons_plus/icons_plus.dart';
 import 'package:irish_potato_app/screens/login.dart';
 import 'package:irish_potato_app/widgets/custom_scaffold.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:irish_potato_app/screens/dashboard.dart';
 import 'package:irish_potato_app/models/location.dart';
+import 'package:irish_potato_app/models/user_profile.dart';
+import 'package:irish_potato_app/services/firestore_service.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -23,6 +24,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   TextEditingController email = TextEditingController();
   TextEditingController password = TextEditingController();
 
+  String selectedRole = 'farmer';
   String? selectedProvince;
   String? selectedDistrict;
   String? selectedSector;
@@ -33,25 +35,33 @@ class _SignUpScreenState extends State<SignUpScreen> {
     setState(() => isLoading = true);
 
     try {
+      print('=== SIGNUP START ===');
       final credential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
             email: email.text.trim(),
             password: password.text,
           );
+      print('Auth user created: ${credential.user!.uid}');
 
       await credential.user?.updateDisplayName(fullname.text.trim());
+      print('Display name updated');
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(credential.user!.uid)
-          .set({
-            'fullName': fullname.text.trim(),
-            'email': email.text.trim(),
-            'province': selectedProvince,
-            'district': selectedDistrict,
-            'sector': selectedSector,
-            'createdAt': FieldValue.serverTimestamp(),
-          });
+      final userId = credential.user!.uid;
+      final profile = UserProfile(
+        uid: userId,
+        fullName: fullname.text.trim(),
+        email: email.text.trim(),
+        role: selectedRole,
+        approved: selectedRole != 'agronomist',
+        province: selectedProvince ?? '',
+        district: selectedDistrict ?? '',
+        sector: selectedSector ?? '',
+        createdAt: DateTime.now().toUtc(),
+      );
+      print('Profile object created: ${profile.toJson()}');
+      
+      await FirestoreService().saveUserProfile(profile);
+      print('Firestore save completed successfully');
 
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
@@ -60,6 +70,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         (route) => false,
       );
     } on FirebaseAuthException catch (e) {
+      print('FirebaseAuthException: ${e.code} - ${e.message}');
       String message = 'An error occurred';
       if (e.code == 'weak-password') {
         message = 'The password provided is too weak';
@@ -68,11 +79,23 @@ class _SignUpScreenState extends State<SignUpScreen> {
       } else if (e.code == 'invalid-email') {
         message = 'Please enter a valid email address';
       }
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
+      }
+    } catch (e, stackTrace) {
+      print('ERROR during signup: $e');
+      print('Stack trace: $stackTrace');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+      }
     } finally {
-      if (mounted) setState(() => isLoading = false);
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
   }
 
@@ -161,6 +184,43 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           ),
                         ),
                       ),
+
+                      const SizedBox(height: 15),
+
+                      /// ROLE
+                      DropdownButtonFormField<String>(
+                        initialValue: selectedRole,
+                        decoration: InputDecoration(
+                          labelText: "Role",
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'farmer',
+                            child: Text('Farmer'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'agronomist',
+                            child: Text('Agronomist'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            selectedRole = value ?? 'farmer';
+                          });
+                        },
+                      ),
+
+                      if (selectedRole == 'agronomist') ...[
+                        const SizedBox(height: 10),
+                        const Text(
+                          'Agronomist accounts require admin approval before full access.',
+                          style: TextStyle(fontSize: 12, color: Colors.black54),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
 
                       const SizedBox(height: 15),
 
