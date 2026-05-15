@@ -1,8 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:irish_potato_app/models/scan_report.dart';
+import 'package:irish_potato_app/services/firestore_service.dart';
 import 'package:irish_potato_app/services/report_storage.dart';
 import 'dart:typed_data';
 
@@ -55,6 +57,10 @@ class _CaptureScreenState extends State<CaptureScreen> {
         );
 
         await ReportStorage().saveReport(report);
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser != null) {
+          await FirestoreService().saveReport(report, currentUser.uid);
+        }
 
         setState(() {
           _imageBytes = bytes;
@@ -398,6 +404,36 @@ class ScanResultScreen extends StatelessWidget {
                           color: Colors.black87,
                         ),
                       ),
+                      if (report.advice != null &&
+                          report.advice!.isNotEmpty) ...[
+                        const SizedBox(height: 20),
+                        const Text(
+                          'Agronomist Advice',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          report.advice!,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        if (report.adviceBy != null &&
+                            report.adviceBy!.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            'Provided by ${report.adviceBy}',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Colors.black54,
+                            ),
+                          ),
+                        ],
+                      ],
                     ],
                   ),
                 ),
