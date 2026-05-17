@@ -10,6 +10,7 @@ class UserProfile {
   final String district;
   final String sector;
   final DateTime createdAt;
+  final String? profileImageUrl;
 
   const UserProfile({
     required this.uid,
@@ -21,6 +22,7 @@ class UserProfile {
     required this.district,
     required this.sector,
     required this.createdAt,
+    this.profileImageUrl,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -43,6 +45,7 @@ class UserProfile {
       district: json['district'] as String,
       sector: json['sector'] as String,
       createdAt: createdAt,
+      profileImageUrl: json['profileImageUrl'] as String?,
     );
   }
 
@@ -56,6 +59,7 @@ class UserProfile {
       'district': district,
       'sector': sector,
       'createdAt': createdAt.toUtc().toIso8601String(),
+      if (profileImageUrl != null) 'profileImageUrl': profileImageUrl,
     };
   }
 

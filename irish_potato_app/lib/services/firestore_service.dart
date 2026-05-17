@@ -23,6 +23,10 @@ class FirestoreService {
     }
   }
 
+  Future<void> updateProfileImage(String uid, String imageUrl) async {
+    await _users.doc(uid).update({'profileImageUrl': imageUrl});
+  }
+
   Future<UserProfile?> getCurrentUserProfile() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return null;
@@ -33,6 +37,34 @@ class FirestoreService {
     final data = Map<String, dynamic>.from(snapshot.data()!);
     data['uid'] = snapshot.id;
     return UserProfile.fromJson(data);
+  }
+
+  Future<UserProfile?> getUserProfile(String uid) async {
+    final snapshot = await _users.doc(uid).get();
+    if (!snapshot.exists || snapshot.data() == null) return null;
+
+    final data = Map<String, dynamic>.from(snapshot.data()!);
+    data['uid'] = snapshot.id;
+    return UserProfile.fromJson(data);
+  }
+
+  Stream<UserProfile?> getUserProfileStream(String uid) {
+    return _users.doc(uid).snapshots().map((snapshot) {
+      if (!snapshot.exists || snapshot.data() == null) return null;
+      final data = Map<String, dynamic>.from(snapshot.data()!);
+      data['uid'] = snapshot.id;
+      return UserProfile.fromJson(data);
+    });
+  }
+
+  Stream<List<UserProfile>> getAllUsersStream() {
+    return _users.snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) {
+        final data = Map<String, dynamic>.from(doc.data());
+        data['uid'] = doc.id;
+        return UserProfile.fromJson(data);
+      }).toList();
+    });
   }
 
   Future<List<UserProfile>> getPendingAgronomists() async {
@@ -73,6 +105,32 @@ class FirestoreService {
     }).toList();
   }
 
+  Future<List<LocationReportItem>> getReportsForLocation(
+    UserProfile agronomist,
+  ) async {
+    final farmers = await getFarmersNearby(agronomist);
+    if (farmers.isEmpty) {
+      return [];
+    }
+
+    final reportGroups = await Future.wait(
+      farmers.map((farmer) async {
+        final reports = await getReportsForUser(farmer.uid);
+        return reports.map((report) {
+          return LocationReportItem(
+            report: report,
+            farmerName: farmer.fullName,
+            farmerLocation: farmer.locationLabel,
+          );
+        }).toList();
+      }),
+    );
+
+    final reports = reportGroups.expand((group) => group).toList();
+    reports.sort((a, b) => b.report.createdAt.compareTo(a.report.createdAt));
+    return reports;
+  }
+
   Future<void> saveReport(ScanReport report, String userId) async {
     final data = report.toJson();
     data['userId'] = userId;
@@ -103,4 +161,16 @@ class FirestoreService {
       'adviceCreatedAt': DateTime.now().toUtc().toIso8601String(),
     });
   }
+}
+
+class LocationReportItem {
+  final ScanReport report;
+  final String farmerName;
+  final String farmerLocation;
+
+  LocationReportItem({
+    required this.report,
+    required this.farmerName,
+    required this.farmerLocation,
+  });
 }
