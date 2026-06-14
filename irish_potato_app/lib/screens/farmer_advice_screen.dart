@@ -3,8 +3,7 @@ import 'package:irish_potato_app/models/scan_report.dart';
 import 'package:irish_potato_app/models/user_profile.dart';
 import 'package:irish_potato_app/screens/captureScreen.dart';
 import 'package:irish_potato_app/services/firestore_service.dart';
-import 'package:irish_potato_app/services/notification_service.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class FarmerAdviceScreen extends StatefulWidget {
   const FarmerAdviceScreen({super.key});
@@ -197,14 +196,18 @@ class _FarmerAdviceScreenState extends State<FarmerAdviceScreen> {
                                       foregroundColor: Colors.white,
                                     ),
                                     onPressed: () async {
-                                      await NotificationService.sendNotificationToAgronomists(
-                                        profile.province,
-                                        profile.district,
-                                        profile.sector,
-                                        'Advice Requested',
-                                        '${profile.fullName} needs advice for ${report.diseaseName}',
-                                        {'type': 'advice_request', 'reportId': report.id, 'farmerId': profile.uid},
-                                      );
+                                      await FirebaseFirestore.instance.collection('notifications').add({
+                                        'type': 'advice_request',
+                                        'title': 'Advice Requested',
+                                        'body': '${profile.fullName} needs advice for ${report.diseaseName}',
+                                        'province': profile.province,
+                                        'district': profile.district,
+                                        'sector': profile.sector,
+                                        'reportId': report.id,
+                                        'farmerId': profile.uid,
+                                        'agronomistId': profile.uid,
+                                        'timestamp': FieldValue.serverTimestamp(),
+                                      });
                                       if (context.mounted) {
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           const SnackBar(

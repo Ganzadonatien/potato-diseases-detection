@@ -7,7 +7,7 @@ import 'package:irish_potato_app/models/scan_report.dart';
 import 'package:irish_potato_app/services/firestore_service.dart';
 import 'package:irish_potato_app/services/report_storage.dart';
 import 'package:irish_potato_app/services/tflite_model_service.dart';
-import 'package:irish_potato_app/services/notification_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:typed_data';
 
 class CaptureScreen extends StatefulWidget {
@@ -34,21 +34,18 @@ class _CaptureScreenState extends State<CaptureScreen> {
     try {
       final userProfile = await FirestoreService().getUserProfile(userId);
       if (userProfile != null && userProfile.role == 'farmer') {
-        await NotificationService.sendNotificationToUser(
-          userId,
-          'Scan Complete',
-          'Your ${report.diseaseName} scan is ready to view',
-          {'type': 'scan_complete', 'reportId': report.id},
-        );
-
-        await NotificationService.sendNotificationToAgronomists(
-          userProfile.province,
-          userProfile.district,
-          userProfile.sector,
-          'New Scan Alert',
-          '${userProfile.fullName} detected ${report.diseaseName}',
-          {'type': 'farmer_scan', 'reportId': report.id, 'farmerId': userId},
-        );
+        // Notify agronomists in same location
+        await FirebaseFirestore.instance.collection('notifications').add({
+          'type': 'farmer_scan',
+          'title': 'New Scan Alert',
+          'body': '${userProfile.fullName} detected ${report.diseaseName}',
+          'province': userProfile.province,
+          'district': userProfile.district,
+          'sector': userProfile.sector,
+          'reportId': report.id,
+          'farmerId': userId,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
       }
     } catch (e) {
       print('Error sending notifications: $e');
