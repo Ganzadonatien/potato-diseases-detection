@@ -1,6 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:icons_plus/icons_plus.dart';
 import 'package:irish_potato_app/screens/dashboard.dart';
 import 'package:irish_potato_app/screens/forgot_password.dart';
 import 'package:irish_potato_app/screens/signup_screen.dart';
@@ -262,9 +261,10 @@ SizedBox(
      Row(
   mainAxisAlignment: MainAxisAlignment.center,
   children: [
-    Brand(
-      Brands.google,
+    Icon(
+      Icons.g_mobiledata,
       size: 40,
+      color: Colors.red,
     ),
   ],
 ),

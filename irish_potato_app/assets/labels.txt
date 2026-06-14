@@ -1,0 +1,5 @@
+Bacterial-wilt
+Early-blight
+Healthy
+Late-blight
+Pest

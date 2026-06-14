@@ -8,7 +8,8 @@ class ScanReport {
   final String title;
   final String status;
   final String details;
-  final String imageBase64;
+  final String imageBase64; // For local storage
+  final String? imageUrl; // For Firestore storage
   final DateTime createdAt;
   final String diseaseName;
   final double confidence;
@@ -24,6 +25,7 @@ class ScanReport {
     required this.status,
     required this.details,
     required this.imageBase64,
+    this.imageUrl,
     required this.createdAt,
     required this.diseaseName,
     required this.confidence,
@@ -87,7 +89,8 @@ class ScanReport {
       title: json['title'] as String,
       status: json['status'] as String,
       details: json['details'] as String,
-      imageBase64: json['imageBase64'] as String,
+      imageBase64: json['imageBase64'] as String? ?? '', // Optional for Firestore
+      imageUrl: json['imageUrl'] as String?, // Get URL from Firestore
       createdAt: createdAt,
       diseaseName: json['diseaseName'] as String,
       confidence: (json['confidence'] as num).toDouble(),

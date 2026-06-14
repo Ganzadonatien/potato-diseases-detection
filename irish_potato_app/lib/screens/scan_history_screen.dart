@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:irish_potato_app/models/scan_report.dart';
 import 'package:irish_potato_app/screens/captureScreen.dart';
-import 'package:irish_potato_app/services/report_storage.dart';
+import 'package:irish_potato_app/services/firestore_service.dart';
 import 'package:intl/intl.dart';
 
 class ScanHistoryScreen extends StatefulWidget {
@@ -20,7 +21,16 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
   @override
   void initState() {
     super.initState();
-    _reportsFuture = ReportStorage().loadReports();
+    _loadReports();
+  }
+
+  void _loadReports() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      _reportsFuture = FirestoreService().getReportsForUser(user.uid);
+    } else {
+      _reportsFuture = Future.value([]);
+    }
   }
 
   List<ScanReport> _filterReports(List<ScanReport> reports) {
@@ -98,6 +108,12 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
 
             final allReports = snapshot.data ?? [];
             final filteredReports = _filterReports(allReports);
+            
+            // Debug info
+            print('Total reports loaded: ${allReports.length}');
+            allReports.forEach((r) {
+              print('Report: ${r.diseaseName} at ${r.createdAt}');
+            });
 
             return Column(
               children: [
@@ -135,6 +151,7 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
                             'Early Blight',
                             'Late Blight',
                             'Bacterial Wilt',
+                            'Pest',
                           ].map((String? value) {
                             return DropdownMenuItem<String?>(
                               value: value,
@@ -228,7 +245,7 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
                                       ),
                                     ).then((_) {
                                       setState(() {
-                                        _reportsFuture = ReportStorage().loadReports();
+                                        _loadReports();
                                       });
                                     });
                                   },
@@ -346,6 +363,8 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
         return const Color(0xFFD32F2F);
       case 'Bacterial Wilt':
         return const Color(0xFF6D4C41);
+      case 'Pest':
+        return const Color(0xFF0288D1);
       default:
         return const Color(0xFF1B5E3A);
     }

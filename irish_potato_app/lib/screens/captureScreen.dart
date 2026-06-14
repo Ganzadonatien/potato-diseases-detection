@@ -6,6 +6,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:irish_potato_app/models/scan_report.dart';
 import 'package:irish_potato_app/services/firestore_service.dart';
 import 'package:irish_potato_app/services/report_storage.dart';
+import 'package:irish_potato_app/services/tflite_model_service.dart';
+import 'package:irish_potato_app/services/notification_service.dart';
 import 'dart:typed_data';
 
 class CaptureScreen extends StatefulWidget {
@@ -28,38 +30,63 @@ class _CaptureScreenState extends State<CaptureScreen> {
     });
   }
 
+  Future<void> _sendNotifications(ScanReport report, String userId) async {
+    try {
+      final userProfile = await FirestoreService().getUserProfile(userId);
+      if (userProfile != null && userProfile.role == 'farmer') {
+        await NotificationService.sendNotificationToUser(
+          userId,
+          'Scan Complete',
+          'Your ${report.diseaseName} scan is ready to view',
+          {'type': 'scan_complete', 'reportId': report.id},
+        );
+
+        await NotificationService.sendNotificationToAgronomists(
+          userProfile.province,
+          userProfile.district,
+          userProfile.sector,
+          'New Scan Alert',
+          '${userProfile.fullName} detected ${report.diseaseName}',
+          {'type': 'farmer_scan', 'reportId': report.id, 'farmerId': userId},
+        );
+      }
+    } catch (e) {
+      print('Error sending notifications: $e');
+    }
+  }
+
   Future<void> _capturePhoto() async {
     try {
       setState(() => _isLoading = true);
 
       final XFile? photo = await _picker.pickImage(
         source: ImageSource.camera,
-        maxWidth: 1024,
-        maxHeight: 1024,
         imageQuality: 85,
       );
 
       if (photo != null) {
         final bytes = await photo.readAsBytes();
-        // Simulate disease detection (replace with actual model)
-        final detectionResult = _simulateDiseaseDetection();
+        final detectionResult = await TfliteModelService.instance.predict(
+          bytes,
+        );
         final report = ScanReport(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
           title:
               'Leaf Scan ${DateTime.now().toLocal().toString().split(' ').first}',
-          status: detectionResult['status']!,
-          details: detectionResult['details']!,
+          status: detectionResult.status,
+          details: detectionResult.details,
           imageBase64: base64Encode(bytes),
           createdAt: DateTime.now().toUtc(),
-          diseaseName: detectionResult['diseaseName']!,
-          confidence: detectionResult['confidence']!,
-          recommendation: detectionResult['recommendation']!,
+          diseaseName: detectionResult.diseaseName,
+          confidence: detectionResult.confidence,
+          recommendation: detectionResult.recommendation,
         );
 
         await ReportStorage().saveReport(report);
         final currentUser = FirebaseAuth.instance.currentUser;
         if (currentUser != null) {
           await FirestoreService().saveReport(report, currentUser.uid);
+          await _sendNotifications(report, currentUser.uid);
         }
 
         setState(() {
@@ -91,29 +118,33 @@ class _CaptureScreenState extends State<CaptureScreen> {
 
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
-        maxWidth: 1024,
-        maxHeight: 1024,
-        imageQuality: 85,
+        // imageQuality: 85,
       );
 
       if (image != null) {
         final bytes = await image.readAsBytes();
-        // Simulate disease detection (replace with actual model)
-        final detectionResult = _simulateDiseaseDetection();
+        final detectionResult = await TfliteModelService.instance.predict(
+          bytes,
+        );
         final report = ScanReport(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
           title:
               'Leaf Scan ${DateTime.now().toLocal().toString().split(' ').first}',
-          status: detectionResult['status']!,
-          details: detectionResult['details']!,
+          status: detectionResult.status,
+          details: detectionResult.details,
           imageBase64: base64Encode(bytes),
           createdAt: DateTime.now().toUtc(),
-          diseaseName: detectionResult['diseaseName']!,
-          confidence: detectionResult['confidence']!,
-          recommendation: detectionResult['recommendation']!,
+          diseaseName: detectionResult.diseaseName,
+          confidence: detectionResult.confidence,
+          recommendation: detectionResult.recommendation,
         );
 
         await ReportStorage().saveReport(report);
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser != null) {
+          await FirestoreService().saveReport(report, currentUser.uid);
+          await _sendNotifications(report, currentUser.uid);
+        }
 
         setState(() {
           _imageBytes = bytes;
@@ -144,45 +175,6 @@ class _CaptureScreenState extends State<CaptureScreen> {
       context,
       MaterialPageRoute(builder: (_) => ScanResultScreen(report: report)),
     );
-  }
-
-  Map<String, dynamic> _simulateDiseaseDetection() {
-    // Simulate different disease detections for demo purposes
-    final diseases = [
-      {
-        'status': 'Healthy',
-        'details': 'No disease detected. Leaf appears healthy.',
-        'diseaseName': 'None',
-        'confidence': 0.95,
-        'recommendation': 'Continue regular monitoring.',
-      },
-      {
-        'status': 'Early Blight Detected',
-        'details': 'Early blight symptoms identified on the leaf.',
-        'diseaseName': 'Early Blight',
-        'confidence': 0.87,
-        'recommendation': 'Apply fungicide and remove affected leaves.',
-      },
-      {
-        'status': 'Late Blight Detected',
-        'details': 'Late blight symptoms present on the leaf.',
-        'diseaseName': 'Late Blight',
-        'confidence': 0.92,
-        'recommendation':
-            'Immediate treatment required. Isolate affected plants.',
-      },
-      {
-        'status': 'Bacterial Wilt Detected',
-        'details': 'Signs of bacterial wilt observed.',
-        'diseaseName': 'Bacterial Wilt',
-        'confidence': 0.78,
-        'recommendation': 'Destroy infected plants and sterilize soil.',
-      },
-    ];
-
-    // Randomly select a disease for simulation
-    final randomIndex = DateTime.now().millisecondsSinceEpoch % diseases.length;
-    return diseases[randomIndex];
   }
 
   @override
@@ -218,7 +210,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
           // Full screen image / camera preview
           Positioned.fill(
             child: _imageBytes != null
-                ? Image.memory(_imageBytes!, fit: BoxFit.cover)
+                ? Center(child: Image.memory(_imageBytes!, fit: BoxFit.contain))
                 : Container(
                     color: const Color(0xFF5A7A5A),
                     child: const Center(
@@ -448,10 +440,8 @@ class ScanResultScreen extends StatelessWidget {
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Use the captured image to run your classification model and show the specific disease or healthy state here.',
-                  style: TextStyle(fontSize: 15, color: Colors.black87),
-                ),
+                
+                
                 const SizedBox(height: 24),
                 Row(
                   children: [

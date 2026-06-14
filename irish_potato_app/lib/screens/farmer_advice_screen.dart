@@ -3,6 +3,8 @@ import 'package:irish_potato_app/models/scan_report.dart';
 import 'package:irish_potato_app/models/user_profile.dart';
 import 'package:irish_potato_app/screens/captureScreen.dart';
 import 'package:irish_potato_app/services/firestore_service.dart';
+import 'package:irish_potato_app/services/notification_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class FarmerAdviceScreen extends StatefulWidget {
   const FarmerAdviceScreen({super.key});
@@ -120,6 +122,8 @@ class _FarmerAdviceScreenState extends State<FarmerAdviceScreen> {
                   separatorBuilder: (_, __) => const SizedBox(height: 12),
                   itemBuilder: (context, index) {
                     final report = reports[index];
+                    final hasAdvice = report.advice != null && report.advice!.isNotEmpty;
+                    
                     return Material(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
@@ -156,17 +160,12 @@ class _FarmerAdviceScreenState extends State<FarmerAdviceScreen> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                report.advice != null &&
-                                        report.advice!.isNotEmpty
+                                hasAdvice
                                     ? report.advice!
                                     : 'Waiting for agronomist advice.',
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color:
-                                      report.advice != null &&
-                                          report.advice!.isNotEmpty
-                                      ? Colors.black87
-                                      : Colors.black54,
+                                  color: hasAdvice ? Colors.black87 : Colors.black54,
                                 ),
                               ),
                               if (report.adviceBy != null &&
@@ -188,6 +187,38 @@ class _FarmerAdviceScreenState extends State<FarmerAdviceScreen> {
                                   color: Colors.black45,
                                 ),
                               ),
+                              if (!hasAdvice) ...[
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFFFF9800),
+                                      foregroundColor: Colors.white,
+                                    ),
+                                    onPressed: () async {
+                                      await NotificationService.sendNotificationToAgronomists(
+                                        profile.province,
+                                        profile.district,
+                                        profile.sector,
+                                        'Advice Requested',
+                                        '${profile.fullName} needs advice for ${report.diseaseName}',
+                                        {'type': 'advice_request', 'reportId': report.id, 'farmerId': profile.uid},
+                                      );
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Agronomists notified! They will review your scan soon.'),
+                                            backgroundColor: Colors.green,
+                                          ),
+                                        );
+                                      }
+                                    },
+                                    icon: const Icon(Icons.notifications_active),
+                                    label: const Text('Remind Agronomist'),
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),

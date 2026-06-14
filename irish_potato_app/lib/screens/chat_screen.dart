@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:irish_potato_app/models/user_profile.dart';
 import 'package:irish_potato_app/services/chat_service.dart';
+import 'package:irish_potato_app/services/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -28,7 +29,7 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
-  void _sendMessage() {
+  void _sendMessage() async {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
 
@@ -36,6 +37,13 @@ class _ChatScreenState extends State<ChatScreen> {
       senderId: widget.currentUser.uid,
       receiverId: widget.otherUser.uid,
       message: text,
+    );
+
+    await NotificationService.sendNotificationToUser(
+      widget.otherUser.uid,
+      'New message from ${widget.currentUser.fullName}',
+      text,
+      {'type': 'chat_message', 'senderId': widget.currentUser.uid},
     );
 
     _messageController.clear();
