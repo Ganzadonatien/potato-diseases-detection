@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:irish_potato_app/models/scan_report.dart';
 import 'package:irish_potato_app/models/user_profile.dart';
+import 'package:irish_potato_app/models/appointment_request.dart';
+import 'package:irish_potato_app/services/notification_service.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -132,9 +134,41 @@ class FirestoreService {
   }
 
   Future<void> saveReport(ScanReport report, String userId) async {
-    final data = report.toJson();
-    data['userId'] = userId;
-    await _reports.doc(report.id).set(data);
+    try {
+      // Save report to Firestore without image (too large)
+      // Image is kept in local storage only
+      final data = {
+        'id': report.id,
+        'title': report.title,
+        'status': report.status,
+        'details': report.details,
+        'createdAt': report.createdAt.toIso8601String(),
+        'diseaseName': report.diseaseName,
+        'confidence': report.confidence,
+        'recommendation': report.recommendation,
+        'userId': userId,
+        'advice': report.advice,
+        'adviceBy': report.adviceBy,
+        'adviceCreatedAt': report.adviceCreatedAt,
+      };
+      
+      await _reports.doc(report.id).set(data);
+      print('Report saved to Firestore');
+      
+      // Save to history collection for tracking
+      await _db.collection('history').add({
+        'userId': userId,
+        'reportId': report.id,
+        'diseaseName': report.diseaseName,
+        'confidence': report.confidence,
+        'createdAt': report.createdAt.toIso8601String(),
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+      print('History entry created');
+    } catch (e) {
+      print('Error saving report: $e');
+      rethrow;
+    }
   }
 
   Future<List<ScanReport>> getReportsForUser(String userId) async {
@@ -150,6 +184,20 @@ class FirestoreService {
     }).toList();
   }
 
+  Stream<List<ScanReport>> getReportsStream(String userId) {
+    return _reports
+        .where('userId', isEqualTo: userId)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        final data = Map<String, dynamic>.from(doc.data());
+        data['id'] = doc.id;
+        return ScanReport.fromJson(data);
+      }).toList();
+    });
+  }
+
   Future<void> addAdviceToReport(
     String reportId,
     String advice,
@@ -159,6 +207,66 @@ class FirestoreService {
       'advice': advice,
       'adviceBy': agronomistName,
       'adviceCreatedAt': DateTime.now().toUtc().toIso8601String(),
+    });
+  }
+
+  Future<void> createAppointmentRequest(
+    String farmerId,
+    String farmerName,
+    String agronomistId,
+    String agronomistName,
+    String reportId,
+    String diseaseName,
+    String message,
+  ) async {
+    final docRef = await _db.collection('appointments').add({
+      'farmerId': farmerId,
+      'farmerName': farmerName,
+      'agronomistId': agronomistId,
+      'agronomistName': agronomistName,
+      'reportId': reportId,
+      'diseaseName': diseaseName,
+      'message': message,
+      'status': 'pending',
+      'createdAt': DateTime.now().toUtc().toIso8601String(),
+      'respondedAt': null,
+    });
+
+    await NotificationService.sendNotificationToUser(
+      agronomistId,
+      'New Appointment Request',
+      '$farmerName needs help with $diseaseName',
+      {'type': 'appointment', 'appointmentId': docRef.id},
+    );
+  }
+
+  Stream<List<AppointmentRequest>> getAppointmentsForAgronomist(String agronomistId) {
+    return _db
+        .collection('appointments')
+        .where('agronomistId', isEqualTo: agronomistId)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        final data = Map<String, dynamic>.from(doc.data());
+        data['id'] = doc.id;
+        return AppointmentRequest.fromJson(data);
+      }).toList();
+    });
+  }
+
+  Stream<List<AppointmentRequest>> getAppointmentsForFarmer(String farmerId) {
+    return _db
+        .collection('appointments')
+        .where('farmerId', isEqualTo: farmerId)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        final data = Map<String, dynamic>.from(doc.data());
+        data['id'] = doc.id;
+        return AppointmentRequest.fromJson(data);
+      }).toList();
     });
   }
 }

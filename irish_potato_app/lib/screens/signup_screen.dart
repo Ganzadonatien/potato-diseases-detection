@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:icons_plus/icons_plus.dart';
 import 'package:irish_potato_app/screens/login.dart';
 import 'package:irish_potato_app/widgets/custom_scaffold.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -400,7 +399,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        children: [Brand(Brands.google, size: 40)],
+                        children: [
+                          Icon(
+                            Icons.g_mobiledata,
+                            size: 40,
+                            color: Colors.red,
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 10),
                       Row(
