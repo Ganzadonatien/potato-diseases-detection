@@ -83,7 +83,13 @@ class FirestoreService {
   }
 
   Future<void> approveAgronomist(String uid) async {
-    await _users.doc(uid).update({'approved': true});
+    final docRef = _users.doc(uid);
+    final snapshot = await docRef.get();
+    if (!snapshot.exists) {
+      throw StateError('User document not found for uid: $uid');
+    }
+
+    await docRef.set({'approved': true}, SetOptions(merge: true));
   }
 
   Future<List<UserProfile>> getFarmersNearby(UserProfile agronomist) async {
@@ -151,10 +157,10 @@ class FirestoreService {
         'adviceBy': report.adviceBy,
         'adviceCreatedAt': report.adviceCreatedAt,
       };
-      
+
       await _reports.doc(report.id).set(data);
       print('Report saved to Firestore');
-      
+
       // Save to history collection for tracking
       await _db.collection('history').add({
         'userId': userId,
@@ -184,18 +190,40 @@ class FirestoreService {
     }).toList();
   }
 
+  Future<List<ScanReport>> getAdviceHistoryForAgronomist(
+    String agronomistName,
+  ) async {
+    final snapshot = await _reports
+        .where('adviceBy', isEqualTo: agronomistName)
+        .get();
+
+    final reports = snapshot.docs.map((doc) {
+      final data = Map<String, dynamic>.from(doc.data());
+      data['id'] = doc.id;
+      return ScanReport.fromJson(data);
+    }).toList();
+
+    reports.sort((a, b) {
+      final aDate = a.adviceCreatedAt ?? a.createdAt;
+      final bDate = b.adviceCreatedAt ?? b.createdAt;
+      return bDate.compareTo(aDate);
+    });
+
+    return reports;
+  }
+
   Stream<List<ScanReport>> getReportsStream(String userId) {
     return _reports
         .where('userId', isEqualTo: userId)
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        final data = Map<String, dynamic>.from(doc.data());
-        data['id'] = doc.id;
-        return ScanReport.fromJson(data);
-      }).toList();
-    });
+          return snapshot.docs.map((doc) {
+            final data = Map<String, dynamic>.from(doc.data());
+            data['id'] = doc.id;
+            return ScanReport.fromJson(data);
+          }).toList();
+        });
   }
 
   Future<void> addAdviceToReport(
@@ -240,19 +268,21 @@ class FirestoreService {
     );
   }
 
-  Stream<List<AppointmentRequest>> getAppointmentsForAgronomist(String agronomistId) {
+  Stream<List<AppointmentRequest>> getAppointmentsForAgronomist(
+    String agronomistId,
+  ) {
     return _db
         .collection('appointments')
         .where('agronomistId', isEqualTo: agronomistId)
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        final data = Map<String, dynamic>.from(doc.data());
-        data['id'] = doc.id;
-        return AppointmentRequest.fromJson(data);
-      }).toList();
-    });
+          return snapshot.docs.map((doc) {
+            final data = Map<String, dynamic>.from(doc.data());
+            data['id'] = doc.id;
+            return AppointmentRequest.fromJson(data);
+          }).toList();
+        });
   }
 
   Stream<List<AppointmentRequest>> getAppointmentsForFarmer(String farmerId) {
@@ -262,12 +292,12 @@ class FirestoreService {
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        final data = Map<String, dynamic>.from(doc.data());
-        data['id'] = doc.id;
-        return AppointmentRequest.fromJson(data);
-      }).toList();
-    });
+          return snapshot.docs.map((doc) {
+            final data = Map<String, dynamic>.from(doc.data());
+            data['id'] = doc.id;
+            return AppointmentRequest.fromJson(data);
+          }).toList();
+        });
   }
 }
 

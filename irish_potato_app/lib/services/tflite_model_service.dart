@@ -403,7 +403,7 @@ class TfliteModelService {
         details: 'Early blight symptoms identified on the leaf.',
         diseaseName: label,
         confidence: confidence,
-        recommendation: 'Apply fungicide and remove affected leaves.',
+        recommendation: 'Stop watering from above and only water the soil directly at the bottom of the plant, because keeping the leaves completely dry stops the spots from growing and moving to other leaves',
       );
     }
 
@@ -415,7 +415,7 @@ class TfliteModelService {
         diseaseName: label,
         confidence: confidence,
         recommendation:
-            'Immediate treatment required. Isolate affected plants.',
+            'Spray the infected leaves immediately with a protective medicine like Mancozeb or copper to protect the healthy parts from airborn contaminators',
       );
     }
 
@@ -426,7 +426,7 @@ class TfliteModelService {
         details: 'Signs of bacterial wilt observed.',
         diseaseName: label,
         confidence: confidence,
-        recommendation: 'Destroy infected plants and sterilize soil.',
+        recommendation: 'Do not touch the plant, but immediately block any water or mud from flowing from the sick plant toward healthy ones, and make sure no one walks or takes tools through that specific area',
       );
     }
 
@@ -436,7 +436,7 @@ class TfliteModelService {
         details: 'Possible pest damage detected on the leaf.',
         diseaseName: label,
         confidence: confidence,
-        recommendation: 'Inspect the plant and apply pest control measures.',
+        recommendation: 'immediately spray the crops with a simple natural neem oil to knock down sap-sucking insects',
       );
     }
 

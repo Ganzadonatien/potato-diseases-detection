@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:irish_potato_app/screens/login.dart';
+import 'package:irish_potato_app/wrapper.dart';
 import 'package:irish_potato_app/widgets/custom_scaffold.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:irish_potato_app/screens/dashboard.dart';
 import 'package:irish_potato_app/models/location.dart';
 import 'package:irish_potato_app/models/user_profile.dart';
+import 'package:irish_potato_app/services/auth_service.dart';
 import 'package:irish_potato_app/services/firestore_service.dart';
 
 class SignUpScreen extends StatefulWidget {
@@ -18,10 +19,41 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _formKey = GlobalKey<FormState>();
   bool agreePersonalData = true;
   bool isLoading = false;
+  final AuthService _authService = AuthService();
 
   TextEditingController fullname = TextEditingController();
   TextEditingController email = TextEditingController();
   TextEditingController password = TextEditingController();
+
+  Future<void> _signInWithGoogle() async {
+    setState(() => isLoading = true);
+    try {
+      await _authService.signInWithGoogle();
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const Wrapper()),
+        (route) => false,
+      );
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        final message = e.code == 'ERROR_ABORTED_BY_USER'
+            ? 'Google sign-in was cancelled.'
+            : 'Google sign-in failed. ${e.message ?? ''}';
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
 
   String selectedRole = 'farmer';
   String? selectedProvince;
@@ -58,14 +90,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
         createdAt: DateTime.now().toUtc(),
       );
       print('Profile object created: ${profile.toJson()}');
-      
+
       await FirestoreService().saveUserProfile(profile);
       print('Firestore save completed successfully');
 
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const MainDashboard()),
+        MaterialPageRoute(builder: (_) => const Wrapper()),
         (route) => false,
       );
     } on FirebaseAuthException catch (e) {
@@ -398,12 +430,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       const SizedBox(height: 10),
 
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
-                            Icons.g_mobiledata,
-                            size: 40,
-                            color: Colors.red,
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              icon: const Icon(
+                                Icons.g_mobiledata,
+                                color: Colors.red,
+                              ),
+                              label: const Text('Sign up with Google'),
+                              onPressed: isLoading ? null : _signInWithGoogle,
+                            ),
                           ),
                         ],
                       ),
