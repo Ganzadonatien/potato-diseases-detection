@@ -8,6 +8,7 @@ import 'package:irish_potato_app/services/firestore_service.dart';
 import 'package:irish_potato_app/services/report_storage.dart';
 import 'package:irish_potato_app/services/tflite_model_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:irish_potato_app/services/local_notification_service.dart';
 import 'dart:typed_data';
 
 class CaptureScreen extends StatefulWidget {
@@ -34,7 +35,14 @@ class _CaptureScreenState extends State<CaptureScreen> {
     try {
       final userProfile = await FirestoreService().getUserProfile(userId);
       if (userProfile != null && userProfile.role == 'farmer') {
-        // Notify agronomists in same location
+        // Show immediate notification to farmer
+        await LocalNotificationService.showNotification(
+          'Scan Complete',
+          'Your ${report.diseaseName} scan is ready to view',
+          {'type': 'scan_complete', 'reportId': report.id},
+        );
+
+        // Save notification data for agronomists in same area
         await FirebaseFirestore.instance.collection('notifications').add({
           'type': 'farmer_scan',
           'title': 'New Scan Alert',
@@ -297,10 +305,39 @@ class ScanResultScreen extends StatelessWidget {
       body: Column(
         children: [
           Expanded(
-            child: Image.memory(
-              base64Decode(report.imageBase64),
-              width: double.infinity,
-              fit: BoxFit.cover,
+            child: Builder(
+              builder: (context) {
+                if (report.imageBase64.isEmpty) {
+                  return Container(
+                    width: double.infinity,
+                    color: Colors.grey[300],
+                    child: const Center(
+                      child: Icon(
+                        Icons.image_not_supported,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  );
+                }
+
+                try {
+                  final bytes = base64Decode(report.imageBase64);
+                  return Image.memory(
+                    bytes,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  );
+                } catch (e) {
+                  // Fall back to an error placeholder if decoding fails
+                  return Container(
+                    width: double.infinity,
+                    color: Colors.grey[300],
+                    child: const Center(
+                      child: Icon(Icons.error, color: Colors.red),
+                    ),
+                  );
+                }
+              },
             ),
           ),
           Container(
@@ -437,8 +474,7 @@ class ScanResultScreen extends StatelessWidget {
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
-                
-                
+
                 const SizedBox(height: 24),
                 Row(
                   children: [

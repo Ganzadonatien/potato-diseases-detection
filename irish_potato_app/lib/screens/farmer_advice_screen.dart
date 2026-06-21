@@ -205,7 +205,6 @@ class _FarmerAdviceScreenState extends State<FarmerAdviceScreen> {
                                         'sector': profile.sector,
                                         'reportId': report.id,
                                         'farmerId': profile.uid,
-                                        'agronomistId': profile.uid,
                                         'timestamp': FieldValue.serverTimestamp(),
                                       });
                                       if (context.mounted) {
